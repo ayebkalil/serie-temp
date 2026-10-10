@@ -1,0 +1,7 @@
+Série,Stat ADF,p-valeur ADF,Verdict ADF,Stat KPSS,p-valeur KPSS,Verdict KPSS,Conclusion Conjointe
+BTC Log-Prix (Niveau),-2.0502,0.265,Non-Stationnaire (Racine Unitaire),5.9214,0.01,Non-Stationnaire (Rejet H0),I(1) Racine Unitaire
+BTC Log-Rendement (Différence),-23.9059,0.0,Stationnaire,0.1875,0.1,Stationnaire,I(0) Stationnaire
+ETH Log-Prix (Niveau),-1.9069,0.3288,Non-Stationnaire (Racine Unitaire),5.5706,0.01,Non-Stationnaire (Rejet H0),I(1) Racine Unitaire
+ETH Log-Rendement (Différence),-15.2236,0.0,Stationnaire,0.234,0.1,Stationnaire,I(0) Stationnaire
+BNB Log-Prix (Niveau),-1.7794,0.3907,Non-Stationnaire (Racine Unitaire),6.2061,0.01,Non-Stationnaire (Rejet H0),I(1) Racine Unitaire
+BNB Log-Rendement (Différence),-12.3416,0.0,Stationnaire,0.2701,0.1,Stationnaire,I(0) Stationnaire

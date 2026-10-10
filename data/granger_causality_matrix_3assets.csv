@@ -1,0 +1,7 @@
+Direction,F-Stat,p-value,Significatif (5%)
+ETH_Return -> BTC_Return,3.547,0.0033,OUI
+BNB_Return -> BTC_Return,1.572,0.1643,NON
+BTC_Return -> ETH_Return,2.302,0.0423,OUI
+BNB_Return -> ETH_Return,1.29,0.2651,NON
+BTC_Return -> BNB_Return,1.427,0.2109,NON
+ETH_Return -> BNB_Return,3.071,0.009,OUI

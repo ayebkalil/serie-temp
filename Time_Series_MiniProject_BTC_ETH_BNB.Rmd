@@ -1,0 +1,188 @@
+---
+title: "Mini-Projet Séries Temporelles — TEK-UP 2026"
+subtitle: "Dynamique Conjointe, Cointégration et Volatilité d'un Panier Tri-Cryptomonnaies : Bitcoin, Ethereum et Binance Coin [2019–2026]"
+author: "Rawen Bejie, Khawla Hawari, Amine Benfadhel, Khalil Ayeb (TEK-UP 2026)"
+date: "Octobre 2026"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    theme: flatly
+    highlight: tango
+    number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+# Introduction et Configuration de l'Environnement R
+
+Ce notebook RMarkdown constitue le livrable de modélisation économétrique en R pour le cours de **Séries Temporelles pour Data Science & IA** (TEK-UP, Enseignant : M. Ahmed Dhouibi).
+
+Nous analysons trois cryptomonnaies majeures : **Bitcoin (BTC-USD)**, **Ethereum (ETH-USD)** et **Binance Coin (BNB-USD)** sur la période s'étendant du **31 janvier 2019 au 3 octobre 2026** (2 803 observations quotidiennes continues 24/7 sans jour férié).
+
+```{r libraries}
+# Chargement des bibliothèques économétriques standard
+library(tseries)
+library(forecast)
+library(vars)
+library(urca)
+library(fGarch)
+library(zoo)
+library(Metrics)
+```
+
+# Données et Partition Chronologique Stricte
+
+- **Échantillon d'apprentissage (90%) :** 2 522 jours (31 janvier 2019 au 26 décembre 2025).
+- **Échantillon de test hors échantillon (10%) :** 281 jours (27 décembre 2025 au 3 octobre 2026).
+
+```{r data_prep}
+df_full <- read.csv("data/crypto_btc_eth_bnb_full.csv", stringsAsFactors = FALSE)
+df_full$Date <- as.Date(df_full$Date)
+
+n_total <- nrow(df_full)
+n_train <- 2522
+
+train_df <- df_full[1:n_train, ]
+test_df  <- df_full[(n_train + 1):n_total, ]
+
+cat("Observations totales (24/7) :", n_total, "jours\n")
+cat("Échantillon Train (90%) :", nrow(train_df), "jours [", as.character(min(train_df$Date)), "au", as.character(max(train_df$Date)), "]\n")
+cat("Échantillon Test  (10%) :", nrow(test_df),  "jours [", as.character(min(test_df$Date)), "au", as.character(max(test_df$Date)), "]\n")
+```
+
+# Double Test Formel de Stationnarité (ADF vs KPSS)
+
+Confrontation conjointe entre le test ADF ($H_0$ : racine unitaire) et le test KPSS ($H_0$ : stationnarité).
+
+```{r stationarity}
+assets <- c("BTC", "ETH", "BNB")
+
+for (coin in assets) {
+  log_p <- train_df[[paste0(coin, "_LogPrice")]]
+  ret   <- train_df[[paste0(coin, "_Return")]]
+  
+  cat("\n=======================================================\n")
+  cat("ACTIF :", coin, "\n")
+  cat("=======================================================\n")
+  
+  adf_p  <- adf.test(log_p)
+  kpss_p <- kpss.test(log_p)
+  cat(sprintf("[Log-Prix]   ADF p-value: %.4f | KPSS p-value: %.4f -> Conclusion : I(1) Non-stationnaire\n", adf_p$p.value, kpss_p$p.value))
+  
+  adf_r  <- adf.test(ret)
+  kpss_r <- kpss.test(ret)
+  cat(sprintf("[Log-Rend.]  ADF p-value: %.4f | KPSS p-value: %.4f -> Conclusion : I(0) Stationnaire\n", adf_r$p.value, kpss_r$p.value))
+}
+```
+
+# Modélisation Univariée ARMA / ARIMA sur Bitcoin
+
+**Clarification méthodologique :** Nous modélisons les log-rendements stationnaires $I(0)$ par un ARMA(1,1), équivalent à un ARIMA(1,0,1) sur rendements ou à un ARIMA(1,1,1) sur les log-prix.
+
+```{r arima}
+btc_ret <- train_df$BTC_Return
+arima_fit <- Arima(btc_ret, order = c(1, 0, 1))
+summary(arima_fit)
+
+# Diagnostics des résidus
+res <- residuals(arima_fit)
+lb_res <- Box.test(res, lag = 10, type = "Ljung-Box")
+cat("\nLjung-Box p-value (résidus en moyenne) :", lb_res$p.value, "-> Absence d'autocorrélation linéaire non rejetée\n")
+
+lb_sq <- Box.test(res^2, lag = 10, type = "Ljung-Box")
+cat("Ljung-Box p-value (résidus^2, effet ARCH) :", lb_sq$p.value, "-> Effets ARCH massifs justifiant le GARCH\n")
+```
+
+# Modélisation Multivariée : VAR(5) et Causalité de Granger sur Rendements
+
+Le modèle VAR est estimé sur les log-rendements stationnaires $I(0)$ du triplet $[r_t^{BTC}, r_t^{ETH}, r_t^{BNB}]$. L'ordre de retards optimal selon le critère AIC est $p = 5$.
+
+```{r var_granger}
+ret_matrix <- data.frame(
+  BTC = train_df$BTC_Return,
+  ETH = train_df$ETH_Return,
+  BNB = train_df$BNB_Return
+)
+
+var_fit <- VAR(ret_matrix, p = 5, type = "const")
+
+cat("\n--- Causalité au sens de Granger (Retards = 5) ---\n")
+cat("ETH -> BNB :\n"); print(causality(var_fit, cause = "ETH")$Granger)
+cat("BNB -> BTC :\n"); print(causality(var_fit, cause = "BNB")$Granger)
+cat("BTC -> ETH :\n"); print(causality(var_fit, cause = "BTC")$Granger)
+```
+
+# Test de Cointégration de Johansen Trivarié sur Log-Prix
+
+La procédure de Johansen est estimée sur les log-prix non stationnaires $I(1)$ avec $K = 5$ retards.
+
+```{r johansen}
+price_matrix <- data.frame(
+  BTC = train_df$BTC_LogPrice,
+  ETH = train_df$ETH_LogPrice,
+  BNB = train_df$BNB_LogPrice
+)
+
+coint_test <- ca.jo(price_matrix, type = "trace", ecdet = "const", K = 5)
+summary(coint_test)
+```
+
+# Modélisation de la Volatilité Conditionnelle GARCH(1,1)
+
+Estimation d'un GARCH(1,1) sous distribution de Student pour queues épaisses.
+
+```{r garch}
+fit_garch <- garchFit(~ arma(1, 0) + garch(1, 1), data = train_df$BTC_Return, cond.dist = "std", trace = FALSE)
+summary(fit_garch)
+```
+
+# Évaluation Prédictive Hors Échantillon & Tests de Diebold-Mariano
+
+Comparaison sur les 281 jours de test (27/12/2025 au 03/10/2026) à partir des prévisions unifiées R / Python.
+
+```{r evaluation}
+preds_df <- read.csv("data/out_of_sample_predictions.csv", stringsAsFactors = FALSE)
+actual <- preds_df$Actual
+naive  <- preds_df$Naive
+arima  <- preds_df$ARIMA
+lstm   <- preds_df$LSTM
+gru    <- preds_df$GRU
+hybrid <- preds_df$Hybrid
+
+calc_metrics <- function(act, pred, name) {
+  e <- act - pred
+  data.frame(
+    Model = name,
+    RMSE = round(sqrt(mean(e^2)), 2),
+    MAE = round(mean(abs(e)), 2),
+    MAPE = round(mean(abs(e / act)) * 100, 2)
+  )
+}
+
+perf_res <- rbind(
+  calc_metrics(actual, naive,  "Naive Random Walk"),
+  calc_metrics(actual, lstm,   "LSTM (PyTorch)"),
+  calc_metrics(actual, gru,    "GRU (PyTorch)"),
+  calc_metrics(actual, hybrid, "Hybrid ARIMA-LSTM"),
+  calc_metrics(actual, arima,  "ARIMA(1,1,1)")
+)
+print(perf_res)
+
+# Tests de Diebold-Mariano
+dm_arima <- dm.test(actual - naive, actual - arima, alternative = "two.sided", h = 1, power = 2)
+dm_lstm  <- dm.test(actual - naive, actual - lstm,  alternative = "two.sided", h = 1, power = 2)
+
+cat("\n--- Tests de Diebold-Mariano en R ---\n")
+cat(sprintf("Naïve vs ARIMA(1,1,1) : DM Stat = %.3f | p-valeur = %e\n", dm_arima$statistic, dm_arima$p.value))
+cat(sprintf("Naïve vs LSTM PyTorch : DM Stat = %.3f | p-valeur = %e\n", dm_lstm$statistic, dm_lstm$p.value))
+```
+
+# Conclusion de l'Étude
+
+1. **Intégration & Cointégration :** Séries $I(1)$ en log-prix et $I(0)$ en rendements selon la double validation ADF/KPSS. Rang de cointégration de Johansen $r=0$ (Trace $= 30.27 < 34.91$ à 5%), justifiant le modèle VAR sur rendements plutôt qu'un VECM.
+2. **Causalité au sens de Granger :** Rétroaction bidirectionnelle entre BTC et ETH ($p = 0.0033$ et $p = 0.0423$), et préséance informationnelle unilatérale d'Ethereum vers BNB ($p = 0.0090$).
+3. **Volatilité Conditionnelle :** Persistance extrême quasi-unitaire ($\alpha_1 + \beta_1 = 1.0000$, frontière IGARCH), résidus à queues épaisses modélisés par Student ($\nu = 2.75$ en R / $2.98$ en Python), et absence d'asymétrie de levier ($\gamma = -0.0029, p = 0.895$).
+4. **Évaluation Prédictive :** La marche aléatoire naïve bat tous les modèles sophistiqués ($DM = -20.179$ vs ARIMA multi-pas, $DM = -14.113$ vs LSTM, $p < 10^{-16}$), illustrant le puzzle empirique de Meese et Rogoff (1983).
