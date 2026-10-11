@@ -145,12 +145,13 @@ Comparaison sur les 281 jours de test (27/12/2025 au 03/10/2026) à partir des p
 
 ```{r evaluation}
 preds_df <- read.csv("data/out_of_sample_predictions.csv", stringsAsFactors = FALSE)
-actual <- preds_df$Actual
-naive  <- preds_df$Naive
-arima  <- preds_df$ARIMA
-lstm   <- preds_df$LSTM
-gru    <- preds_df$GRU
-hybrid <- preds_df$Hybrid
+actual     <- preds_df$Actual
+naive      <- preds_df$Naive
+arima_roll <- preds_df$ARIMA_Rolling
+arima_mult <- preds_df$ARIMA_MultiStep
+lstm       <- preds_df$LSTM
+gru        <- preds_df$GRU
+hybrid     <- preds_df$Hybrid
 
 calc_metrics <- function(act, pred, name) {
   e <- act - pred
@@ -163,21 +164,29 @@ calc_metrics <- function(act, pred, name) {
 }
 
 perf_res <- rbind(
-  calc_metrics(actual, naive,  "Naive Random Walk"),
-  calc_metrics(actual, lstm,   "LSTM (PyTorch)"),
-  calc_metrics(actual, gru,    "GRU (PyTorch)"),
-  calc_metrics(actual, hybrid, "Hybrid ARIMA-LSTM"),
-  calc_metrics(actual, arima,  "ARIMA(1,1,1)")
+  calc_metrics(actual, naive,      "1. Naive Random Walk (h=1)"),
+  calc_metrics(actual, arima_roll, "2. ARIMA(1,0,1) Roulant (h=1)"),
+  calc_metrics(actual, lstm,       "3. LSTM (PyTorch)"),
+  calc_metrics(actual, gru,        "4. GRU (PyTorch)"),
+  calc_metrics(actual, hybrid,     "5. Hybrid ARIMA-LSTM"),
+  calc_metrics(actual, arima_mult, "6. ARIMA(1,1,1) Multi-Pas (h=281)")
 )
 print(perf_res)
 
-# Tests de Diebold-Mariano
-dm_arima <- dm.test(actual - naive, actual - arima, alternative = "two.sided", h = 1, power = 2)
-dm_lstm  <- dm.test(actual - naive, actual - lstm,  alternative = "two.sided", h = 1, power = 2)
+# Tests de Diebold-Mariano (Newey-West HAC)
+e_naive      <- actual - naive
+e_arima_roll <- actual - arima_roll
+e_lstm       <- actual - lstm
+e_gru        <- actual - gru
 
-cat("\n--- Tests de Diebold-Mariano en R ---\n")
-cat(sprintf("Naïve vs ARIMA(1,1,1) : DM Stat = %.3f | p-valeur = %e\n", dm_arima$statistic, dm_arima$p.value))
-cat(sprintf("Naïve vs LSTM PyTorch : DM Stat = %.3f | p-valeur = %e\n", dm_lstm$statistic, dm_lstm$p.value))
+dm_arima <- dm.test(e_naive, e_arima_roll, alternative = "two.sided", h = 1, power = 2)
+dm_gru   <- dm.test(e_naive, e_gru,        alternative = "two.sided", h = 1, power = 2)
+dm_lstm  <- dm.test(e_naive, e_lstm,       alternative = "two.sided", h = 1, power = 2)
+
+cat("\n--- Tests de Diebold-Mariano en R (h=1) ---\n")
+cat(sprintf("Naïve vs ARIMA Roulant (h=1) : DM Stat = %.3f | p-valeur = %.4f (Égalité non rejetée)\n", dm_arima$statistic, dm_arima$p.value))
+cat(sprintf("Naïve vs GRU PyTorch (h=1)   : DM Stat = %.3f | p-valeur = %e (Naïf supérieur)\n", dm_gru$statistic, dm_gru$p.value))
+cat(sprintf("Naïve vs LSTM PyTorch (h=1)  : DM Stat = %.3f | p-valeur = %e (Naïf supérieur)\n", dm_lstm$statistic, dm_lstm$p.value))
 ```
 
 # Conclusion de l'Étude
