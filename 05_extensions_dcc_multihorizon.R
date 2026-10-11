@@ -7,7 +7,7 @@ suppressPackageStartupMessages({
   library(Metrics)
 })
 
-full_df <- read.csv("data/crypto_btc_eth_bnb_full.csv", stringsAsFactors = FALSE)
+full_df <- read.csv("C:/Users/ayebk/OneDrive/Desktop/serie temp/data/crypto_btc_eth_bnb_full.csv", stringsAsFactors = FALSE)
 full_df$Date <- as.Date(full_df$Date)
 
 # Corrélation glissante sur 60 jours
@@ -25,7 +25,7 @@ cat("Corrélation statique BTC-ETH :", round(cor(full_df$BTC_Return, full_df$ETH
 cat("Corrélation statique BTC-BNB :", round(cor(full_df$BTC_Return, full_df$BNB_Return), 4), "\n")
 cat("Corrélation statique ETH-BNB :", round(cor(full_df$ETH_Return, full_df$BNB_Return), 4), "\n")
 
-test_df <- read.csv("data/crypto_btc_eth_bnb_test.csv", stringsAsFactors = FALSE)
+test_df <- read.csv("C:/Users/ayebk/OneDrive/Desktop/serie temp/data/crypto_btc_eth_bnb_test.csv", stringsAsFactors = FALSE)
 actual <- test_df$BTC_Close
 
 horizons <- c(1, 5, 7, 10)
@@ -43,3 +43,4 @@ for (h in horizons) {
 }
 
 cat("\nScript 05 (R) exécuté avec succès !\n")
+

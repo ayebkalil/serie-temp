@@ -11,7 +11,7 @@ suppressPackageStartupMessages({
 })
 
 cat("--- Chargement des prévisions hors échantillon synchronisées (281 jours) ---\n")
-preds_df <- read.csv("data/out_of_sample_predictions.csv", stringsAsFactors = FALSE)
+preds_df <- read.csv("C:/Users/ayebk/OneDrive/Desktop/serie temp/data/out_of_sample_predictions.csv", stringsAsFactors = FALSE)
 preds_df$Date <- as.Date(preds_df$Date)
 
 actual_price <- preds_df$Actual
@@ -91,3 +91,4 @@ cat("   La supériorité de la marche aléatoire et l'efficience faible du march
 cat("   par les tests économétriques sous R et sous Python.\n")
 
 cat("\nScript 04 (R) exécuté avec succès !\n")
+

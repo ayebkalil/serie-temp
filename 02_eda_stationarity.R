@@ -10,7 +10,7 @@ suppressPackageStartupMessages({
 })
 
 cat("--- Chargement des données d'apprentissage 3-Actifs (2019-2025) ---\n")
-train_df <- read.csv("data/crypto_btc_eth_bnb_train.csv", stringsAsFactors = FALSE)
+train_df <- read.csv("C:/Users/ayebk/OneDrive/Desktop/serie temp/data/crypto_btc_eth_bnb_train.csv", stringsAsFactors = FALSE)
 train_df$Date <- as.Date(train_df$Date)
 
 btc_ret <- train_df$BTC_Return

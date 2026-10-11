@@ -12,7 +12,7 @@ suppressPackageStartupMessages({
 })
 
 cat("--- Chargement des données d'apprentissage (2019-2025) ---\n")
-train_df <- read.csv("data/crypto_btc_eth_bnb_train.csv", stringsAsFactors = FALSE)
+train_df <- read.csv("C:/Users/ayebk/OneDrive/Desktop/serie temp/data/crypto_btc_eth_bnb_train.csv", stringsAsFactors = FALSE)
 train_df$Date <- as.Date(train_df$Date)
 
 btc_ret <- train_df$BTC_Return
@@ -63,3 +63,4 @@ garch_r <- garchFit(~ arma(1,0) + garch(1,1), data = btc_ret, cond.dist = "std",
 print(summary(garch_r))
 
 cat("\nScript 03 (R) 3-Actifs exécuté avec succès !\n")
+
